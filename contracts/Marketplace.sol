@@ -14,7 +14,7 @@ contract Marketplace {
         bool confirmed;
     }
 
-    IERC20 public USDc;
+    IERC20 public token;
     uint public productCount;
     mapping(address => uint) public stakingBalance;
     mapping(uint => Product) public products;
@@ -28,8 +28,8 @@ contract Marketplace {
     event ProductBought(uint productId, address buyer);
     event ProductConfirmed(uint productId, address buyer);
 
-    constructor() {
-        USDc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    constructor(address _tokenAddress) {
+        token = IERC20(_tokenAddress);
     }
 
     function listProduct(string memory _name, uint _price) public {
@@ -51,11 +51,13 @@ contract Marketplace {
 
     function buyProduct(uint productId, uint $USDc) public {
         require($USDc > 0, "Amount must be greater than zero");
+        require(products[productId].id == productId, "Product does not exist");
+        require(products[productId].price / 10 ** 6 == $USDc, "Incorrect price");
 
         Product storage product = products[productId];
         require(!product.sold, "Product already sold");
 
-        USDc.transferFrom(msg.sender, address(this), $USDc * 10 ** 6);
+        token.transferFrom(msg.sender, address(this), $USDc * 10 ** 6);
 
         emit ProductBought(productCount, msg.sender);
 
@@ -73,7 +75,7 @@ contract Marketplace {
 
         require(balance > 0, "staking balance cannot be 0");
 
-        USDc.transfer(msg.sender, balance);
+        token.transfer(msg.sender, balance);
 
         stakingBalance[msg.sender] = 0;
     }
@@ -88,8 +90,8 @@ contract Marketplace {
         require(!product.confirmed, "Delivery already confirmed");
 
         product.confirmed = true;
-        USDc.approve(address(this), product.price);
-        USDc.transferFrom(address(this), product.seller, product.price);
+        token.approve(address(this), product.price);
+        token.transferFrom(address(this), product.seller, product.price);
 
         stakingBalance[product.buyer] = 0;
 
